@@ -1,1 +1,340 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { Volume2, Mic, Send, Settings, MessageCircle, BookOpen } from 'lucide-react';
+
+export default function EnglishCoach() {
+  const [currentMode, setCurrentMode] = useState('learn');
+  const [currentStructureIdx, setCurrentStructureIdx] = useState(0);
+  const [pronunciationLang, setPronunciationLang] = useState('english');
+  const [chatMessages, setChatMessages] = useState([
+    { role: 'bot', text: '👋 Hello! I\'m your English coach. Practice with me by writing or speaking. How can I help you today?' }
+  ]);
+  const [inputText, setInputText] = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const chatEndRef = useRef(null);
+
+  const structures = [
+    { structure: 'I need', examples: ['I need help', 'I need water', 'I need time', 'I need money', 'I need a doctor', 'I need information', 'I need a taxi', 'I need rest'], explanation: 'Express an urgent or important need' },
+    { structure: 'Can you help me', examples: ['Can you help me with this?', 'Can you help me find the station?', 'Can you help me understand?', 'Can you help me move this?', 'Can you help me call a doctor?', 'Can you help me with directions?', 'Can you help me with my English?', 'Can you help me please?'], explanation: 'Ask for help politely' },
+    { structure: 'I would like', examples: ['I would like coffee', 'I would like a table for two', 'I would like to go home', 'I would like your number', 'I would like more information', 'I would like to leave', 'I would like some water', 'I would like to speak English'], explanation: 'Express a desire or formal preference' },
+    { structure: 'Do you have', examples: ['Do you have a room?', 'Do you have WiFi?', 'Do you have a pen?', 'Do you have any brothers?', 'Do you have experience?', 'Do you have time?', 'Do you have a car?', 'Do you have children?'], explanation: 'Ask if something exists' },
+    { structure: 'Where is', examples: ['Where is the bathroom?', 'Where is the station?', 'Where is the hospital?', 'Where is the airport?', 'Where is the restaurant?', 'Where is your office?', 'Where is the nearest bus stop?', 'Where is the exit?'], explanation: 'Ask for directions or locate something' },
+    { structure: 'What time', examples: ['What time is it?', 'What time is the meeting?', 'What time do you start?', 'What time is the flight?', 'What time is checkout?', 'What time does it open?', 'What time are you free?', 'What time is lunch?'], explanation: 'Ask for time or schedule' },
+    { structure: 'How much', examples: ['How much is it?', 'How much does it cost?', 'How much money do you have?', 'How much time do I have?', 'How much do you charge?', 'How much is the bill?', 'How much is this dress?', 'How much altogether?'], explanation: 'Ask for price or quantity' },
+    { structure: 'I am', examples: ['I am happy', 'I am tired', 'I am French', 'I am a doctor', 'I am ready', 'I am here', 'I am sorry', 'I am fine'], explanation: 'Describe your state or identity' },
+    { structure: 'This is', examples: ['This is good', 'This is my friend John', 'This is the station', 'This is delicious', 'This is expensive', 'This is important', 'This is correct', 'This is my house'], explanation: 'Present something or someone' },
+    { structure: 'I like', examples: ['I like coffee', 'I like reading', 'I like you', 'I like Paris', 'I like sports', 'I like this book', 'I like traveling', 'I like learning English'], explanation: 'Express your preferences' },
+    { structure: 'Can I', examples: ['Can I help you?', 'Can I have a menu?', 'Can I speak?', 'Can I sit here?', 'Can I see the bill?', 'Can I return this?', 'Can I take a photo?', 'Can I ask a question?'], explanation: 'Ask permission to do something' },
+    { structure: 'Do you speak', examples: ['Do you speak English?', 'Do you speak French?', 'Do you speak Spanish?', 'Do you speak slowly?', 'Do you speak Italian?', 'Do you speak German?', 'Do you speak Arabic?', 'Do you speak Portuguese?'], explanation: 'Ask if someone speaks a language' },
+    { structure: 'What is your', examples: ['What is your name?', 'What is your number?', 'What is your email?', 'What is your job?', 'What is your address?', 'What is your opinion?', 'What is your favorite book?', 'What is your age?'], explanation: 'Ask personal questions' },
+    { structure: 'I don\'t understand', examples: ['I don\'t understand', 'I don\'t understand English', 'I don\'t understand you', 'I don\'t understand this', 'I don\'t understand the question', 'I don\'t understand the menu', 'I don\'t understand the rules', 'I don\'t understand the language'], explanation: 'Express lack of understanding' },
+    { structure: 'Can you repeat', examples: ['Can you repeat that?', 'Can you repeat slowly?', 'Can you repeat please?', 'Can you repeat the question?', 'Can you repeat your name?', 'Can you repeat the address?', 'Can you repeat the number?', 'Can you repeat louder?'], explanation: 'Ask someone to repeat' },
+    { structure: 'I work', examples: ['I work as a teacher', 'I work in Paris', 'I work for Google', 'I work part-time', 'I work from home', 'I work 8 hours a day', 'I work with computers', 'I work in sales'], explanation: 'Talk about your work' },
+    { structure: 'How are you', examples: ['How are you?', 'How are you doing?', 'How are you feeling?', 'How are you today?', 'How are you this morning?', 'How are you after the trip?', 'How are you with English?', 'How are you really?'], explanation: 'Ask how someone is' },
+    { structure: 'I am from', examples: ['I am from France', 'I am from Paris', 'I am from Africa', 'I am from Canada', 'I am from London', 'I am from New York', 'I am from Italy', 'I am from Japan'], explanation: 'Say where you\'re from' },
+    { structure: 'There is', examples: ['There is a problem', 'There is no time', 'There is no water', 'There is a cat', 'There is a restaurant nearby', 'There is no solution', 'There is a meeting', 'There is someone at the door'], explanation: 'Indicate existence of something' },
+    { structure: 'I have', examples: ['I have a car', 'I have a wife', 'I have children', 'I have experience', 'I have time', 'I have money', 'I have a phone', 'I have a question'], explanation: 'Indicate possession' },
+    { structure: 'What do you do', examples: ['What do you do for work?', 'What do you do in your free time?', 'What do you do at weekends?', 'What do you do in the evening?', 'What do you do tomorrow?', 'What do you do on holidays?', 'What do you do for fun?', 'What do you do all day?'], explanation: 'Ask what someone does' },
+    { structure: 'I would like to', examples: ['I would like to go', 'I would like to speak English', 'I would like to visit Paris', 'I would like to meet you', 'I would like to work here', 'I would like to try this', 'I would like to call a doctor', 'I would like to leave'], explanation: 'Express desire or intention' },
+    { structure: 'Can you explain', examples: ['Can you explain this?', 'Can you explain the rule?', 'Can you explain the problem?', 'Can you explain in simple English?', 'Can you explain the word?', 'Can you explain the meaning?', 'Can you explain slowly?', 'Can you explain again?'], explanation: 'Ask for an explanation' },
+    { structure: 'I am not', examples: ['I am not happy', 'I am not ready', 'I am not French', 'I am not a teacher', 'I am not sure', 'I am not tired', 'I am not sick', 'I am not here'], explanation: 'Deny or express opposite' },
+    { structure: 'Do you have time', examples: ['Do you have time to help?', 'Do you have time tomorrow?', 'Do you have time for a drink?', 'Do you have time to talk?', 'Do you have time this week?', 'Do you have time to meet?', 'Do you have time for lunch?', 'Do you have time now?'], explanation: 'Ask if someone is available' },
+  ];
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = false;
+        recognitionRef.current.interimResults = false;
+        recognitionRef.current.lang = 'en-US';
+        recognitionRef.current.onstart = () => setIsListening(true);
+        recognitionRef.current.onend = () => setIsListening(false);
+        recognitionRef.current.onresult = (event) => {
+          const transcript = Array.from(event.results)
+            .map(result => result[0].transcript)
+            .join('');
+          setInputText(transcript);
+          handleSendMessage(transcript, 'speech');
+        };
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  const speak = (text) => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = pronunciationLang === 'french' ? 'fr-FR' : 'en-US';
+      utterance.rate = 0.9;
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  const toggleListening = () => {
+    if (recognitionRef.current) {
+      if (isListening) {
+        recognitionRef.current.stop();
+      } else {
+        setInputText('');
+        recognitionRef.current.start();
+      }
+    }
+  };
+
+  const calculateSimilarity = (a, b) => {
+    const longer = a.length > b.length ? a : b;
+    const shorter = a.length > b.length ? b : a;
+    if (longer.length === 0) return 1;
+    const editDistance = getEditDistance(longer, shorter);
+    return (longer.length - editDistance) / longer.length;
+  };
+
+  const getEditDistance = (s1, s2) => {
+    const costs = [];
+    for (let i = 0; i <= s1.length; i++) {
+      let lastValue = i;
+      for (let j = 0; j <= s2.length; j++) {
+        if (i === 0) {
+          costs[j] = j;
+        } else if (j > 0) {
+          let newValue = costs[j - 1];
+          if (s1.charAt(i - 1) !== s2.charAt(j - 1)) {
+            newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+          }
+          costs[j - 1] = lastValue;
+          lastValue = newValue;
+        }
+      }
+      if (i > 0) costs[s2.length] = lastValue;
+    }
+    return costs[s2.length];
+  };
+
+  const analyzePronounciation = (userText) => {
+    const examples = structures[currentStructureIdx].examples;
+    let bestMatch = { phrase: examples[0], similarity: 0 };
+    examples.forEach(example => {
+      const similarity = calculateSimilarity(userText.toLowerCase(), example.toLowerCase());
+      if (similarity > bestMatch.similarity) {
+        bestMatch = { phrase: example, similarity };
+      }
+    });
+    if (bestMatch.similarity > 0.85) {
+      return { correct: true, feedback: '✅ Perfect! Your pronunciation is excellent!' };
+    } else if (bestMatch.similarity > 0.7) {
+      return { correct: false, feedback: `⚠️ Good effort! You said: "${userText}"\nCorrect: "${bestMatch.phrase}"\nLet's try again!` };
+    } else {
+      return { correct: false, feedback: `❌ Not quite right.\nYou said: "${userText}"\nCorrect: "${bestMatch.phrase}"\nListen and try again!` };
+    }
+  };
+
+  const handleSendMessage = (text = inputText, source = 'text') => {
+    if (!text.trim()) return;
+    const userMessage = { role: 'user', text };
+    const newMessages = [...chatMessages, userMessage];
+    let botResponse = '';
+    if (source === 'speech') {
+      const analysis = analyzePronounciation(text);
+      botResponse = analysis.feedback;
+      if (analysis.correct) {
+        const randomPhrase = structures[currentStructureIdx].examples[Math.floor(Math.random() * 8)];
+        botResponse += `\n\n🎉 Great job! Try this next:\n"${randomPhrase}"`;
+      }
+    } else {
+      if (text.toLowerCase().includes('next')) {
+        if (currentStructureIdx < structures.length - 1) {
+          setCurrentStructureIdx(currentStructureIdx + 1);
+          botResponse = `Let's move to the next structure! 📚\n\nStructure: ${structures[currentStructureIdx + 1].structure}\nExplanation: ${structures[currentStructureIdx + 1].explanation}`;
+        } else {
+          botResponse = 'You\'ve completed all structures! 🎉 Want to start again? Type "reset"';
+        }
+      } else if (text.toLowerCase().includes('reset')) {
+        setCurrentStructureIdx(0);
+        botResponse = 'Let\'s start from the beginning! 🚀';
+      } else {
+        botResponse = `Good practice! You're working on "${structures[currentStructureIdx].structure}".\n\nExample phrases:\n${structures[currentStructureIdx].examples.slice(0, 4).map((ex, i) => `${i + 1}. ${ex}`).join('\n')}\n\nTry saying one of these!`;
+      }
+    }
+    newMessages.push({ role: 'bot', text: botResponse });
+    setChatMessages(newMessages);
+    setInputText('');
+  };
+
+  const LearningMode = () => {
+    const current = structures[currentStructureIdx];
+    return (
+      <div className="h-full flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <div className="bg-slate-800/50 backdrop-blur-sm border-b border-slate-700 p-6">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">{current.structure}</h1>
+                <p className="text-slate-400 mt-2 text-lg">{current.explanation}</p>
+              </div>
+              <div className="text-right text-slate-400">
+                <div className="text-3xl font-bold text-cyan-400">{currentStructureIdx + 1}/{structures.length}</div>
+              </div>
+            </div>
+            <div className="w-full bg-slate-700 rounded-full h-1">
+              <div className="bg-gradient-to-r from-cyan-400 to-blue-500 h-1 rounded-full transition-all duration-300" style={{ width: `${((currentStructureIdx + 1) / structures.length) * 100}%` }} />
+            </div>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {current.examples.map((example, idx) => (
+                <div key={idx} className="bg-slate-700/40 hover:bg-slate-700/60 border border-slate-600/50 rounded-lg p-4 cursor-pointer transition-all hover:scale-105 group" onClick={() => speak(example)}>
+                  <div className="flex items-start gap-3">
+                    <span className="text-cyan-400 font-bold text-lg flex-shrink-0">{idx + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-medium break-words">{example}</p>
+                      <p className="text-slate-400 text-sm mt-2 opacity-0 group-hover:opacity-100 transition-opacity">Click to hear</p>
+                    </div>
+                    <Volume2 className="w-5 h-5 text-cyan-400 flex-shrink-0 mt-1" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="bg-slate-800/50 backdrop-blur-sm border-t border-slate-700 p-6">
+          <div className="max-w-4xl mx-auto flex gap-3 flex-wrap justify-center">
+            <button onClick={() => setCurrentMode('chat')} className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold rounded-lg hover:shadow-lg hover:shadow-cyan-500/50 transition-all flex items-center gap-2">
+              <MessageCircle className="w-5 h-5" />
+              Practice with Chat
+            </button>
+            {currentStructureIdx > 0 && (
+              <button onClick={() => setCurrentStructureIdx(currentStructureIdx - 1)} className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-all">
+                ← Previous
+              </button>
+            )}
+            {currentStructureIdx < structures.length - 1 && (
+              <button onClick={() => setCurrentStructureIdx(currentStructureIdx + 1)} className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-all">
+                Next →
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const ChatMode = () => {
+    return (
+      <div className="h-full flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <div className="bg-slate-800/50 backdrop-blur-sm border-b border-slate-700 p-6">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Practice with Your Coach</h1>
+                <p className="text-slate-400 mt-1">Structure: <span className="text-cyan-300">{structures[currentStructureIdx].structure}</span></p>
+              </div>
+              <button onClick={() => setCurrentMode('learn')} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg flex items-center gap-2 transition-all">
+                <BookOpen className="w-4 h-4" />
+                Back
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          <div className="max-w-4xl mx-auto w-full">
+            {chatMessages.map((msg, idx) => (
+              <div key={idx} className={`mb-4 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
+                <div className={`inline-block max-w-xs lg:max-w-md px-4 py-3 rounded-lg ${msg.role === 'user' ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-br-none' : 'bg-slate-700 text-slate-100 rounded-bl-none'}`}>
+                  <p className="text-sm whitespace-pre-wrap break-words">{msg.text}</p>
+                </div>
+              </div>
+            ))}
+            <div ref={chatEndRef} />
+          </div>
+        </div>
+        <div className="bg-slate-800/50 backdrop-blur-sm border-t border-slate-700 p-6">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex gap-3 flex-wrap mb-4 justify-center">
+              <button onClick={toggleListening} className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${isListening ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-cyan-500 hover:bg-cyan-600 text-white'}`}>
+                <Mic className="w-5 h-5" />
+                {isListening ? 'Listening...' : 'Speak'}
+              </button>
+              <button onClick={() => speak(structures[currentStructureIdx].examples[0])} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-semibold flex items-center gap-2 transition-all">
+                <Volume2 className="w-5 h-5" />
+                Listen
+              </button>
+            </div>
+            <div className="flex gap-3">
+              <input type="text" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()} placeholder="Type your message or use voice..." className="flex-1 bg-slate-700 border border-slate-600 text-white rounded-lg px-4 py-3 placeholder-slate-400 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/50 transition-all" />
+              <button onClick={() => handleSendMessage()} className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold rounded-lg hover:shadow-lg hover:shadow-cyan-500/50 transition-all flex items-center gap-2">
+                <Send className="w-5 h-5" />
+                Send
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const SettingsPanel = () => {
+    return (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-8 max-w-md w-full">
+          <h2 className="text-2xl font-bold text-cyan-400 mb-6">Pronunciation Settings</h2>
+          <div className="space-y-6">
+            <div>
+              <label className="block text-white font-semibold mb-3">Choose Language</label>
+              <div className="space-y-2">
+                {[
+                  { id: 'english', label: '🇬🇧 English (Primary)', desc: 'Learn with English pronunciation' },
+                  { id: 'french', label: '🇫🇷 French', desc: 'French pronunciation support' },
+                  { id: 'kreyol', label: '🇭🇹 Kreyòl', desc: 'Haitian Creole support' }
+                ].map((lang) => (
+                  <label key={lang.id} className="flex items-start gap-3 cursor-pointer group p-3 hover:bg-slate-700/50 rounded-lg transition-all">
+                    <input type="radio" name="pronunciation" value={lang.id} checked={pronunciationLang === lang.id} onChange={(e) => setPronunciationLang(e.target.value)} className="w-4 h-4 accent-cyan-400 mt-1 flex-shrink-0" />
+                    <div className="flex-1">
+                      <span className="block text-slate-300 group-hover:text-cyan-400 transition-colors font-medium">{lang.label}</span>
+                      <span className="block text-slate-500 text-xs mt-1">{lang.desc}</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="border-t border-slate-700 pt-6">
+              <p className="text-slate-400 text-sm">ℹ️ English remains the primary learning language. Choose an additional language for pronunciation support.</p>
+            </div>
+          </div>
+          <button onClick={() => setShowSettings(false)} className="mt-8 w-full px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold rounded-lg hover:shadow-lg hover:shadow-cyan-500/50 transition-all">
+            Save Settings
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="h-screen w-screen flex flex-col overflow-hidden font-sans">
+      <div className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center">
+            <span className="text-white font-bold text-lg">E</span>
+          </div>
+          <h1 className="text-2xl font-bold text-white">English Coach</h1>
+        </div>
+        <button onClick={() => setShowSettings(true)} className="p-2 hover:bg-slate-800 rounded-lg transition-all">
+          <Settings className="w-6 h-6 text-slate-400 hover:text-cyan-400" />
+        </button>
+      </div>
+
+      {currentMode === 'learn' ? <LearningMode /> : <ChatMode />}
+
+      {showSettings && <SettingsPanel />}
+    </div>
+  );
+}
 
